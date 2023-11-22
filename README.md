@@ -4,7 +4,7 @@ What is the best text model we can make that is trained, from scratch, on a sing
 
 &nbsp;
 
-## The Plans
+## The Plan
 
 Every day, we will train whatever is on main on a single h100. Have an idea? Submit a pull request. Training the baseline has started today. [Link will go here in a couple hours]
 

@@ -13,10 +13,10 @@ We are primarily interested in exploring model archecture improvements.
 
 Things we are not doing.
 
-A) Innovating on quantisation, effecient fine tuning and other direct compute optimisations such as flash attention. (we will use them tho!)
-B) Improving datasets, we will keep the dataset static. (Or atleast only introduce them as the project grows)
-C) Training the biggest model we can.
-D) Doing what is popular
+- Innovating on quantisation, effecient fine tuning and other direct compute optimisations such as flash attention. (we will use them tho!)
+- Improving datasets, we will keep the dataset static. (Or atleast only introduce them as the project grows)
+- Training the biggest model we can.
+- Doing what is popular just because
 
 Things we are doing
 A) Training a lot of small models on the same dataset looking for general compute multipliers in the archecture. 

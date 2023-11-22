@@ -2,6 +2,10 @@
 
 What is the best text model we can make that is trained, from scratch, on a single h100 (or h200 soon?) in 24 hours? 
 
+&nbsp;
+
+## The Plans
+
 Every day, we will train whatever is on main on a single h100. Have an idea? Submit a pull request. Training the baseline has started today. [Link will go here in a couple hours]
 
 We are primarily interested in exploring model archecture improvements. 
@@ -22,21 +26,11 @@ Code > Ideas, submit a pull request. [Join our discord, we have bounties](https:
 
 Given set of design and hyper-parameter choices and a fixed test loss target, compute efficiency is the measurement of how much compute is required to meet that test loss. A more efficient model requires less GPUs, a less efficient one needs more. By having a fixed training budget, and wallclock time. We can iterate quickly and find things worth exploring.
 
-## Pretraining
-
-Conversion scripts for optimized streaming `PackedDataset` are included. We only train on openwebtext at the moment.
-
-&nbsp;
-
-Don't forget to [join our Discord](https://discord.gg/VptPCZkGNa)!
-
-&nbsp;
-
-# How can I help
+## How can I help
 
 Submit a pull request. Let's try some shit.
 
-# Funding
+## Funding
 
 I'll self fund a dedicated h100 to run full time. But, we'd love to scale our best ideas for the community, hit us up if you have compute and you see us doing something cool.
 

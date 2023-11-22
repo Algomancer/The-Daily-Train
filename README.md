@@ -19,9 +19,9 @@ Things we are not doing.
 - Doing what is popular just because
 
 Things we are doing
-A) Training a lot of small models on the same dataset looking for general compute multipliers in the archecture. 
-B) Trying weird stuff.
-C) If this works, we will start a monthly train.
+- Training a lot of small models on the same dataset looking for general compute multipliers in the archecture.
+- Trying weird stuff.
+- If this works, we will start a monthly train.
 
 Code > Ideas, submit a pull request. [Join our discord, we have bounties](https://discord.gg/T4TtwVXn)
 

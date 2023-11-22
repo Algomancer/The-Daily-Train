@@ -16,7 +16,7 @@ Every day, we will train the latest code from the main branch on a single h100 G
 ### What We Aren't Doing
 - Innovating in areas like quantization, efficient fine-tuning, or compute optimizations (e.g., flash attention). Note: We will utilize these technologies.
 - Altering datasets frequently. The initial dataset will remain static, with potential expansions as the project evolves.
-- Prioritizing the size of the model over innovation.
+- Training a big model.
 - Following popular trends without critical analysis.
 
 ### What We Are Doing

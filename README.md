@@ -24,7 +24,7 @@ Every day, we will train the latest code from the main branch on a single h100 G
 - Embracing experimental and unconventional ideas.
 - Planning for a monthly training cycle if successful.
 
-**Action Point:** Contribute with code! Submit your pull requests. [Join our Discord for discussions and bounties](https://discord.gg/T4TtwVXn).
+**Action Point:** [Join our Discord for discussions and bounties](https://discord.gg/T4TtwVXn).
 
 ### Efficiency Metrics
 Compute efficiency, defined as the compute required to achieve a set test loss with given design and hyper-parameter choices, is our key metric. More efficient models need fewer GPUs, while less efficient ones need more. By setting a fixed training budget and timeframe, we aim to rapidly identify and explore promising approaches.

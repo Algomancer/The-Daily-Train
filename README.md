@@ -1,9 +1,5 @@
 # The Daily Train.
 
-```
- Given set of design and hyper-parameter choices and a fixed test loss target, compute efficiency is the measurement of how much compute is required to meet that test loss. A more efficient model requires less GPUs, a less efficient one needs more. 
-```
-
 What is the best text model we can make that is trained, from scratch, on a single h100 (or h200 soon?) in 24 hours? 
 
 Every day, we will train whatever is on main on a single h100. Have an idea? Submit a pull request. Training the baseline has started today. [Link will go here in a couple hours]
@@ -23,6 +19,8 @@ B) Trying weird stuff.
 C) If this works, we will start a monthly train.
 
 Code > Ideas, submit a pull request. [Join our discord, we have bounties](https://discord.gg/T4TtwVXn)
+
+Given set of design and hyper-parameter choices and a fixed test loss target, compute efficiency is the measurement of how much compute is required to meet that test loss. A more efficient model requires less GPUs, a less efficient one needs more. By having a fixed training budget, and wallclock time. We can iterate quickly and find things worth exploring.
 
 ## Pretraining
 

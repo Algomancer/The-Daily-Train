@@ -1,4 +1,5 @@
 # The Daily Train.
+![Logo of The Daily Train](https://raw.githubusercontent.com/Algomancer/The-Daily-Train/main/assets/logo.webp)
 
 What is the best text model we can make that is trained, from scratch, on a single h100 (or h200 soon?) in 24 hours? 
 

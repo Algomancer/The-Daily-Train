@@ -6,7 +6,11 @@
 ## The Plan
 
 ### Daily Training
-Every day, we will train the latest code from the main branch on a single h100 GPU. Got an idea? Contribute by submitting a pull request. The training of the baseline model begins today. [Training progress link to be added soon]
+Every day, we will train the latest code from the main branch on a single h100 GPU. Got an idea? Contribute by submitting a pull request. 
+
+Let's explore some stuff first.
+
+Day 1. MMD-GPT - https://wandb.ai/haitch/lightning_logs/reports/MMD-Vae--Vmlldzo2MDU5MjQ2
 
 ### Focus Areas
 - Exploring architectural improvements in text models.

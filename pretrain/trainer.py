@@ -8,7 +8,7 @@ import lightning as L
 import numpy as np
 import torch
 from lightning.fabric.utilities import measure_flops
-from lightning.pytorch.callbacks import ModelCheckpoint, ThroughputMonitor
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger
 from lightning.pytorch.strategies import FSDPStrategy
 from torch.utils.data import DataLoader, IterableDataset
@@ -96,7 +96,7 @@ class LightningGPTModule(L.LightningModule):
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         input_ids, targets = batch
         logits,  encoding = self.module(input_ids)
-        target_distribution = torch.randn(128, encoding.size(1), encoding.size(2), device=encoding.device)
+        target_distribution = torch.randn(256, encoding.size(1), encoding.size(2), device=encoding.device)
         mmd_loss = MMD_loss(encoding, target_distribution)
         loss = chunked_cross_entropy(logits, targets, chunk_size=0)
         self.log("train_loss", loss, on_step=True, on_epoch=False, prog_bar=True)
@@ -106,7 +106,7 @@ class LightningGPTModule(L.LightningModule):
     def validation_step(self, batch: Any, batch_idx: int) -> None:
         input_ids, targets = batch
         logits, encoding = self.module(input_ids)
-        target_distribution = torch.randn(128, encoding.size(1), encoding.size(2), device=encoding.device)
+        target_distribution = torch.randn(256, encoding.size(1), encoding.size(2), device=encoding.device)
         mmd_loss = MMD_loss(encoding, target_distribution)
 
         loss = chunked_cross_entropy(logits, targets, chunk_size=0)
@@ -136,9 +136,7 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
         strategy = "auto"
 
     logger = CSVLogger("out", name, flush_logs_every_n_steps=log_interval)
-    throughput = ThroughputMonitor(
-        length_fn=lambda batch: batch[0].size(1), batch_size_fn=lambda batch: micro_batch_size, window_size=50
-    )
+
     model_checkpoint = ModelCheckpoint(dirpath=out_dir, every_n_train_steps=save_interval, save_last=True, verbose=True)
 
     wandb_logger = WandbLogger(log_model="all")
@@ -148,7 +146,7 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
         strategy=strategy,
         precision=precision,
         logger=[logger, wandb_logger],
-        callbacks=[throughput, model_checkpoint],
+        callbacks=[model_checkpoint],
         max_steps=max_iters,
         max_epochs=1,
         limit_val_batches=eval_iters,
@@ -168,7 +166,7 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
     trainer.print(f"Loading model with {config.__dict__}")
     t0 = time.perf_counter()
     model = LightningGPTModule(config)
-    wandb_logger.watch(model, log_freq=500)
+    #wandb_logger.watch(model, log_freq=500)
 
     trainer.print(f"Time to instantiate model: {time.perf_counter() - t0:.02f} seconds.")
 

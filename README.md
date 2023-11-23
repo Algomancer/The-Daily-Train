@@ -10,7 +10,9 @@ Every day, we will train the latest code from the main branch on a single h100 G
 
 Let's explore some stuff first.
 
-Day 1. MMD-GPT - https://wandb.ai/haitch/lightning_logs/reports/MMD-Vae--Vmlldzo2MDU5MjQ2 (training) - commit 29df4d64dd02ffbce17a60e4e5b712bf5fafb437
+Day 1. MMD-GPT - https://wandb.ai/haitch/lightning_logs/reports/MMD-Vae--Vmlldzo2MDU5MjQ2 (training) 
+
+commit 29df4d64dd02ffbce17a60e4e5b712bf5fafb437
 
 ### Focus Areas
 - Exploring architectural improvements in text models.

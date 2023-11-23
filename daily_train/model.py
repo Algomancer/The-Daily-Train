@@ -67,8 +67,10 @@ class GPT(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, idx: torch.Tensor, input_pos: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, idx: torch.Tensor, input_pos: Optional[torch.Tensor] = None, preamble: Optional[torch.Tensor] = None) -> torch.Tensor:
         T = idx.size(1)
+        if preamble is not None:
+            T = T + preamble.size(1)
         if self.max_seq_length < T:
             raise ValueError(f"Cannot forward sequence of length {T}, max seq length is only {self.max_seq_length}.")
 
@@ -84,9 +86,13 @@ class GPT(nn.Module):
             mask = None
 
         x = self.transformer.wte(idx)  # token embeddings of shape (b, t, n_embd)
+        if preamble is not None:
+            x = torch.cat([preamble, x], dim=1)
         for block in self.transformer.h:
             x = block(x, cos, sin, mask, input_pos)
         x = self.transformer.ln_f(x)
+        if preamble is not None:
+            x = x[:, preamble.size(1):, :]
         return self.lm_head(x)  # (b, t, vocab_size)
 
     @classmethod

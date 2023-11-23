@@ -20,6 +20,11 @@ sys.path.append(str(wd))
 from daily_train import Config
 from daily_train.model import GPT, Block
 from daily_train.utils import chunked_cross_entropy, estimate_flops, get_default_supported_precision
+from daily_train.encoder import TransformerBase
+from daily_train.losses import MMD_loss
+import torch.nn as nn
+import torch.nn.functional as F
+from pytorch_lightning.loggers import WandbLogger
 
 model_name = "baseline"
 name = "openwebtext"
@@ -36,7 +41,7 @@ batch_size = 125
 micro_batch_size = 5
 gradient_accumulation_steps = batch_size // micro_batch_size
 assert gradient_accumulation_steps > 0
-max_iters = 600000  # num_epochs * (epoch_size // micro_batch_size) // devices
+max_iters = 600000
 weight_decay = 1e-1
 beta1 = 0.9
 beta2 = 0.95
@@ -44,11 +49,23 @@ decay_lr = True
 warmup_iters = 2000
 lr_decay_iters = max_iters
 min_lr = 6e-5
-
 hparams = {k: v for k, v in locals().items() if isinstance(v, (int, float, str)) and not k.startswith("_")}
 
 
+class MMDVae(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.gpt = GPT(config)
+        self.encoder = TransformerBase(embed_dim=config.n_embd, num_heads=config.n_head, block_size=config.block_size, layers=config.n_layer, rope=True)
 
+    def forward(self, idx: torch.Tensor, input_pos: Optional[torch.Tensor] = None):
+        embeds = self.gpt.transformer.wte(idx)
+        encoded = self.encoder(embeds)
+        encoded = torch.mean(encoded, dim=1, keepdim=True)
+        results = self.gpt(idx, input_pos=input_pos, preamble=encoded)
+        return results, encoded
+    
 class LightningGPTModule(L.LightningModule):
     def __init__(self, config: Config) -> None:
         super().__init__()
@@ -57,28 +74,15 @@ class LightningGPTModule(L.LightningModule):
         self.flops_per_batch: Optional[int] = None
 
     def configure_model(self) -> None:
-        self.module = GPT(self.config)
-        self.module.apply(self.module._init_weights)
+        self.module = MMDVae(self.config)
+        # Probs need to do some weight init to do on the encoder.
+        self.module.gpt.apply(self.module.gpt._init_weights)
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         return torch.optim.AdamW(
             self.module.parameters(), lr=learning_rate, weight_decay=weight_decay, betas=(beta1, beta2), foreach=False
         )
 
-    def on_fit_start(self) -> None:
-        trainer = self.trainer
-        with torch.device("meta"):
-            meta_model = GPT(self.module.config)
-            # "estimated" is not as precise as "measured". Estimated is optimistic but widely used in the wild.
-            # When comparing MFU or FLOP numbers with other projects that use estimated FLOPs,
-            # consider setting `self.flops_per_batch = estimated_flops` instead
-            estimated_flops = estimate_flops(meta_model, training=True) * micro_batch_size
-            self.print(f"Estimated TFLOPs: {estimated_flops * trainer.world_size / 1e12:.2f}")
-            x = torch.randint(0, 1, (micro_batch_size, meta_model.max_seq_length))
-            forward_fn = lambda: meta_model(x)
-            loss_fn = lambda y: chunked_cross_entropy(y, x, chunk_size=0)
-            self.flops_per_batch = measure_flops(meta_model, forward_fn, loss_fn)
-            self.print(f"Measured TFLOPs: {self.flops_per_batch * trainer.world_size / 1e12:.2f}")
 
     def on_train_batch_start(self, batch: Any, batch_idx: int) -> None:
         if not decay_lr:
@@ -91,16 +95,24 @@ class LightningGPTModule(L.LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         input_ids, targets = batch
-        logits = self.module(input_ids)
+        logits,  encoding = self.module(input_ids)
+        target_distribution = torch.randn(128, encoding.size(1), encoding.size(2), device=encoding.device)
+        mmd_loss = MMD_loss(encoding, target_distribution)
         loss = chunked_cross_entropy(logits, targets, chunk_size=0)
         self.log("train_loss", loss, on_step=True, on_epoch=False, prog_bar=True)
-        return loss
+        self.log("mmd_loss", mmd_loss, on_step=True, on_epoch=False, prog_bar=True)
+        return loss + mmd_loss
 
     def validation_step(self, batch: Any, batch_idx: int) -> None:
         input_ids, targets = batch
-        logits = self.module(input_ids)
+        logits, encoding = self.module(input_ids)
+        target_distribution = torch.randn(128, encoding.size(1), encoding.size(2), device=encoding.device)
+        mmd_loss = MMD_loss(encoding, target_distribution)
+
         loss = chunked_cross_entropy(logits, targets, chunk_size=0)
+
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("mmd_loss", mmd_loss, on_step=False, on_epoch=True, prog_bar=True)
 
     def state_dict(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
         state_dict = super().state_dict(*args, **kwargs)
@@ -128,11 +140,14 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
         length_fn=lambda batch: batch[0].size(1), batch_size_fn=lambda batch: micro_batch_size, window_size=50
     )
     model_checkpoint = ModelCheckpoint(dirpath=out_dir, every_n_train_steps=save_interval, save_last=True, verbose=True)
+
+    wandb_logger = WandbLogger(log_model="all")
+
     trainer = L.Trainer(
         devices=devices,
         strategy=strategy,
         precision=precision,
-        logger=logger,
+        logger=[logger, wandb_logger],
         callbacks=[throughput, model_checkpoint],
         max_steps=max_iters,
         max_epochs=1,
@@ -153,10 +168,12 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
     trainer.print(f"Loading model with {config.__dict__}")
     t0 = time.perf_counter()
     model = LightningGPTModule(config)
+    wandb_logger.watch(model, log_freq=500)
+
     trainer.print(f"Time to instantiate model: {time.perf_counter() - t0:.02f} seconds.")
 
-    train_data = Dataset(str(data_dir / "train.bin"), config.block_size)
-    val_data = Dataset(str(data_dir / "val.bin"), config.block_size)
+    train_data = Dataset(str(data_dir / "train.bin"), config.block_size - 1)
+    val_data = Dataset(str(data_dir / "val.bin"), config.block_size - 1)
     train_dataloader = DataLoader(train_data, batch_size=micro_batch_size, num_workers=2)
     val_dataloader = DataLoader(val_data, batch_size=micro_batch_size, num_workers=2)
 

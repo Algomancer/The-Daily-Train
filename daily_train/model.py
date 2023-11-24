@@ -145,7 +145,6 @@ class Block(nn.Module):
         self.attn = CausalSelfAttention(config)
         self.norm_2 = None if config.shared_attention_norm else config.norm_class(config.n_embd, eps=config.norm_eps)
         self.mlp = config.mlp_class(config)
-        self.smear = Smear(config.n_head, config.block_size) if config.use_smear else nn.Identity()
 
         self.config = config
 
@@ -181,6 +180,7 @@ class CausalSelfAttention(nn.Module):
         self.attn = nn.Linear(config.n_embd, shape, bias=config.bias)
         # output projection
         self.proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
+        self.smear = Smear(config.n_head, config.block_size) if config.use_smear else nn.Identity()
         # disabled by default
         self.kv_cache: Optional[KVCache] = None
 
@@ -306,7 +306,7 @@ class Smear(torch.nn.Module):
 
     def forward(self, k: torch.Tensor) -> torch.Tensor:
         # k has shape (batch_size, n_heads, seq_len, d_k)
-        smeared_k = k[:, :, 1:, :]*(torch.sigmoid(self.alpha_values)) + k[:, :, :-1, :]*(1-torch.sigmoid(self.alpha_values))
+        smeared_k = k[:, :, 1:, :]*(torch.sigmoid(self.alpha_values[:, :, 1:k.shape[2], :]))+ k[:, :, :-1, :]*(1-torch.sigmoid(self.alpha_values[:, :, -k.shape[2]:-1, :]))
         return torch.cat([k[:, :, 0:1, :], smeared_k], dim=2)
 
 def build_rope_cache(
@@ -363,3 +363,4 @@ class KVCache(nn.Module):
     def reset_parameters(self) -> None:
         torch.nn.init.zeros_(self.k)
         torch.nn.init.zeros_(self.v)
+

@@ -145,6 +145,7 @@ class Block(nn.Module):
         self.attn = CausalSelfAttention(config)
         self.norm_2 = None if config.shared_attention_norm else config.norm_class(config.n_embd, eps=config.norm_eps)
         self.mlp = config.mlp_class(config)
+        self.smear = Smear(config.n_head, config.block_size) if config.use_smear else nn.Identity()
 
         self.config = config
 
@@ -227,6 +228,7 @@ class CausalSelfAttention(nn.Module):
                 raise TypeError("You need to call `gpt.set_kv_cache()`")
             k, v = self.kv_cache(input_pos, k, v)
 
+        k = self.smear(k)
         y = self.scaled_dot_product_attention(q, k, v, mask)
 
         y = y.reshape(B, T, C)  # re-assemble all head outputs side by side
@@ -294,6 +296,18 @@ class LLaMAMLP(nn.Module):
         x = torch.nn.functional.silu(x_fc_1) * x_fc_2
         return self.proj(x)
 
+
+# from https://github.com/CG80499/Attention-only-transformers/blob/18da5d303e4d5e0ef32706b868e16386316b131e/toy_transformers.py#L100
+class Smear(torch.nn.Module):
+    def __init__(self, n_heads, seq_len):
+        super().__init__()
+        # This corresponds an inital weighting of 73% to the first key and 27% to the second key.
+        self.alpha_values = torch.nn.Parameter(torch.ones(1, n_heads, seq_len-1, 1)) 
+
+    def forward(self, k: torch.Tensor) -> torch.Tensor:
+        # k has shape (batch_size, n_heads, seq_len, d_k)
+        smeared_k = k[:, :, 1:, :]*(torch.sigmoid(self.alpha_values)) + k[:, :, :-1, :]*(1-torch.sigmoid(self.alpha_values))
+        return torch.cat([k[:, :, 0:1, :], smeared_k], dim=2)
 
 def build_rope_cache(
     seq_len: int, n_elem: int, device: Optional[torch.device] = None, base: int = 10000, condense_ratio: int = 1

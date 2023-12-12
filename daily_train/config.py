@@ -55,6 +55,7 @@ class Config:
     intermediate_size: Optional[int] = None
     rope_condense_ratio: int = 1
     rope_base: int = 10000
+    use_smear: bool = False
 
     def __post_init__(self):
         if not self.name:
